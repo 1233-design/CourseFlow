@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CourseFlow · Subject, Timetable & Classroom Allocation</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="masthead">
+  <div class="brand">
+    <div class="logo" aria-hidden="true">◧</div>
+    <div>
+      <h1>CourseFlow</h1>
+      <p>Automatic subject, timetable and classroom allocation for university courses</p>
+    </div>
+  </div>
+  <div class="head-actions">
+    <button class="btn ghost light" id="resetBtn" type="button">Reset to sample</button>
+    <button class="btn ghost light" id="exportBtn" type="button">Export CSV</button>
+    <button class="btn primary" id="generateBtn" type="button">Generate schedule</button>
+  </div>
+</header>
+
+<nav class="tabs" aria-label="Sections">
+  <button class="tab" data-tab="setup" type="button">1 · Setup</button>
+  <button class="tab" data-tab="timetable" type="button">2 · Timetable</button>
+  <button class="tab" data-tab="insights" type="button">3 · Insights</button>
+  <button class="tab" data-tab="algorithms" type="button">4 · Algorithms</button>
+  <span class="dirty-badge" id="dirtyBadge" hidden>Data changed — regenerate</span>
+</nav>
+
+<main>
+  <!-- SETUP -->
+  <section class="panel" data-panel="setup">
+    <div class="card control-bar">
+      <div class="field">
+        <label for="engineSelect">Allocation engine</label>
+        <select id="engineSelect" class="input">
+          <option value="csp">CSP backtracking (recommended)</option>
+          <option value="greedy">Greedy heuristic</option>
+          <option value="coloring">Graph colouring (DSATUR)</option>
+        </select>
+      </div>
+      <label class="check" for="dpToggle">
+        <input type="checkbox" id="dpToggle" checked>
+        <span>Apply dynamic-programming room optimisation</span>
+      </label>
+      <p class="hint">Teaching grid: Monday–Friday · 7 periods<br>(13:00 lunch break excluded) · rooms below</p>
+      <button class="btn primary" type="button" data-generate>Run allocator</button>
+    </div>
+
+    <div class="setup-grid">
+      <div class="card" id="roomsCard"></div>
+      <div class="card" id="instructorsCard"></div>
+      <div class="card wide" id="subjectsCard"></div>
+    </div>
+  </section>
+
+  <!-- TIMETABLE -->
+  <section class="panel" data-panel="timetable" hidden>
+    <div class="card toolbar">
+      <div class="field">
+        <label for="cohortFilter">Cohort</label>
+        <select id="cohortFilter" class="input"></select>
+      </div>
+      <div class="field">
+        <label for="roomFilter">Room</label>
+        <select id="roomFilter" class="input"></select>
+      </div>
+      <div class="segmented" role="group" aria-label="View mode">
+        <button type="button" data-view="week" class="active">Week grid</button>
+        <button type="button" data-view="room">By room</button>
+      </div>
+      <div class="legend" id="legend"></div>
+    </div>
+    <div id="timetableHost"></div>
+  </section>
+
+  <!-- INSIGHTS -->
+  <section class="panel" data-panel="insights" hidden>
+    <div id="insightsHost"></div>
+  </section>
+
+  <!-- ALGORITHMS -->
+  <section class="panel" data-panel="algorithms" hidden>
+    <div class="card run-summary" id="runSummary"></div>
+    <div class="algo-grid">
+      <article class="card algo">
+        <span class="algo-tag">Technique 1</span>
+        <h3>Constraint satisfaction (CSP)</h3>
+        <p><strong>Variables</strong> are the weekly sessions. <strong>Domains</strong> are every (day, period, room) triple that physically fits the subject. <strong>Constraints</strong> forbid an instructor, a cohort or a room from appearing twice in one period, and keep a subject off the same day twice.</p>
+        <p>Solved with backtracking search using the minimum-remaining-values heuristic, degree tie-breaking, least-constraining value ordering and incremental forward checking.</p>
+        <p class="complexity">Worst case O(d<sup>n</sup>) · exponential but heavily pruned</p>
+      </article>
+      <article class="card algo">
+        <span class="algo-tag">Technique 2</span>
+        <h3>Greedy allocation</h3>
+        <p>Sessions are sorted hardest-first (smallest domain, then highest conflict degree). Each one immediately takes the best feasible slot: the emptiest day, the emptiest period, and the tightest room that still seats everyone.</p>
+        <p>One pass, no backtracking — extremely fast, used as the baseline the other engines improve on.</p>
+        <p class="complexity">O(n log n + n · D) · linear in practice</p>
+      </article>
+      <article class="card algo">
+        <span class="algo-tag">Technique 3</span>
+        <h3>Graph colouring</h3>
+        <p>Each session is a vertex. An edge joins two sessions that cannot share a period (same instructor, same cohort or same subject). Time slots are the colours, so a proper colouring guarantees no overlapping classes.</p>
+        <p>Coloured with DSATUR (most-saturated vertex first). A candidate colour is only accepted if the rooms of that period can still host every session — checked with bipartite matching.</p>
+        <p class="complexity">O(V<sup>2</sup>) colour selection · NP-hard problem, greedy-approximate</p>
+      </article>
+      <article class="card algo">
+        <span class="algo-tag">Technique 4</span>
+        <h3>Dynamic programming</h3>
+        <p>Inside every time slot, rooms are packed by a bitmask DP: <code>dp[mask]</code> is the minimum wasted seats when the first <em>k</em> sessions are seated in the rooms of <code>mask</code>. It finds the globally best room assignment for that period instead of first-fit.</p>
+        <p>The result is reported as seats reclaimed and the resulting room utilisation.</p>
+        <p class="complexity">O(2<sup>m</sup> · m · k) with m rooms per slot (m ≤ 12)</p>
+      </article>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="js/data.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
